@@ -1,16 +1,20 @@
 package com.example.desafiojavaspringboot.services;
 
 import com.example.desafiojavaspringboot.domain.Products;
-import com.example.desafiojavaspringboot.errors.InvalidRequestException;
-import com.example.desafiojavaspringboot.errors.ResourceNotFoundException;
 import com.example.desafiojavaspringboot.repositories.ProductsRepository;
+import com.example.desafiojavaspringboot.repositories.SearchPath;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.server.ResponseStatusException;
 
-import javax.validation.Valid;
+import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.Predicate;
+import javax.persistence.criteria.Root;
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,70 +24,48 @@ public class ProductsService {
     @Autowired
     private ProductsRepository repository;
 
-    public ResponseEntity<Products> findProduct(Integer id){
-        Optional<Products> product = repository.findById(id);
-
-        if(product.isPresent())
-            return new ResponseEntity<Products>(product.get(),HttpStatus.OK);
-        else
-            throw new ResourceNotFoundException("Product not found");
-
+    public Optional<Products> findProduct(Integer id) {
+        return this.repository.findById(id);
     }
 
-    public ResponseEntity<Products> saveProduct(Integer id, Products newProduct){
-        Optional<Products> oldProduct = repository.findById(id);
+    public void saveProduct(Integer id, Products product) {
 
-        if(oldProduct.isPresent()){
-            Products product = oldProduct.get();
-            product.setName(newProduct.getName());
-            product.setDescription(newProduct.getDescription());
-            product.setPrice(newProduct.getPrice());
+        this.repository.findById(id).map(oldProduct -> { product.setId(oldProduct.getId());
+            this.repository.save(product);
+                    return oldProduct;
+                    }).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found"));
+    }
 
-            parametersVerification(product);
-            repository.save(product);
+    public List<Products> findAll()  { return this.repository.findAll(); }
 
-            return new ResponseEntity<Products>(product,HttpStatus.OK);
+    public void createProduct(Products product)  { this.repository.save(product); }
+
+    public void deleteProducts(Products product)  {this.repository.delete(product);}
+
+    public List<Products> search(String q, BigDecimal min_price, BigDecimal max_price) {
+
+        List<Products> allProductsFiltered = new ArrayList<Products>();
+
+        if(q == null && max_price == null && min_price == null){
+            return repository.findAll();
+        }
+
+        else {
+            SearchPath searchPath = new SearchPath();
+
+            for (Products products : repository.findAll()) {
+                if(searchPath.queryWithParamsMethod(products, q, min_price, max_price)){
+
+                    allProductsFiltered.add(products);
+                }
+            }
 
         }
-        else
-            throw new ResourceNotFoundException("Product not found");
+
+        return allProductsFiltered;
     }
 
-    public List<Products> findAll() {
 
-        return repository.findAll();
-
-    }
-
-    public ResponseEntity<Products> createProduct(Products product) {
-
-            parametersVerification(product);
-            repository.save(product);
-            return new ResponseEntity<Products>(product, HttpStatus.OK);
-
-    }
-
-    public ResponseEntity<Products> deleteProducts(Integer id) {
-        Optional<Products> product = repository.findById(id);
-
-        if(product.isPresent()) {
-            repository.deleteById(id);
-            return new ResponseEntity<>(HttpStatus.OK);
-        }
-        else
-            throw new ResourceNotFoundException("Product not found");
-
-    }
-
-    private void parametersVerification(Products product) {
-
-        if(product.getName() == null || product.getDescription() == null || product.getPrice() == null )
-            throw new InvalidRequestException("Parameters can't be null");
-
-        if(product.getPrice() < 0)
-            throw new InvalidRequestException("Price can't be negative");
-
-    }
     }
 
 

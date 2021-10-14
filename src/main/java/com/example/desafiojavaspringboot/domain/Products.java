@@ -1,29 +1,39 @@
 package com.example.desafiojavaspringboot.domain;
 
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.validation.constraints.NotBlank;
+import javax.persistence.*;
+import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
-import java.io.Serializable;
+import javax.validation.constraints.Positive;
+import java.math.BigDecimal;
 
 @Entity
-@NoArgsConstructor @AllArgsConstructor
-@ToString(exclude="id")
-@JsonPropertyOrder({"id", "name", "description", "price"})
-public class Products implements Serializable {
-    private static final long serialVersionUID = 1L;
+@Table(name = "product")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+public class Products {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Getter @Setter private Integer id;
-    @Getter @Setter private String name;
-    @Getter @Setter private String description;
-    @Getter @Setter private Double price;
+    @Column(name = "id")
+    private Integer id;
 
+    @Column(name = "name")
+    @NotEmpty(message = "Field name can not be empty")
+    private String name;
 
+    @Column(name = "description")
+    @NotEmpty(message = "Field description can not be empty")
+    private String description;
+
+    @NotNull(message = "Field price can not be empty")
+    @Positive(message = "Field price must be positive")
+    @Column(name = "price", precision = 20, scale = 2)
+    private BigDecimal price;
 }

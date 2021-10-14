@@ -1,7 +1,9 @@
 package com.example.desafiojavaspringboot.resources;
 
 import com.example.desafiojavaspringboot.domain.Products;
+import com.example.desafiojavaspringboot.repositories.SearchPath;
 import com.example.desafiojavaspringboot.services.ProductsService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
@@ -9,73 +11,57 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @RestController
+@RequiredArgsConstructor
 public class ProductsResource {
 
     @Autowired
-    private ProductsService service;
+    private final ProductsService service;
 
     @RequestMapping(value = "/products", method = RequestMethod.POST)
-    public ResponseEntity<?> create(@RequestBody Products product){
+    public ResponseEntity<Products> create(@Valid @RequestBody Products product){
 
-        ResponseEntity<Products> products = service.createProduct(product);
-        return ResponseEntity.ok().body(products);
+        this.service.createProduct(product);
+        return new ResponseEntity<>(product, HttpStatus.CREATED);
     }
 
     @RequestMapping(value="/products", method = RequestMethod.GET)
-    public List<Products> findAllProducts(){
+    public ResponseEntity<List<Products>> findAllProducts(){
 
-        return service.findAll();
+        List<Products> products = this.service.findAll();
+        return new ResponseEntity<>(products, HttpStatus.OK);
     }
 
     @RequestMapping(value = "/products/{id}", method = RequestMethod.GET)
-    public ResponseEntity<?> findProduct(@PathVariable Integer id){
-        ResponseEntity<Products> product = service.findProduct(id);
-
-        return ResponseEntity.ok().body(product);
+    public ResponseEntity<Products> findProduct(@PathVariable("id") Integer id){
+        Optional<Products> product = this.service.findProduct(id);
+        return product.map(value -> new ResponseEntity<>(value, HttpStatus.OK)).orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
     }
 
     @RequestMapping(value = "/products/search", method = RequestMethod.GET)
-    public List<Products> findProductsWithParams(@RequestParam(value = "min_price", required = false) Double min_price, @RequestParam(value = "max_price", required = false) Double max_price, @RequestParam(value = "q", required = false) String q){
+    public ResponseEntity<List<Products>> findProductsWithParams(@RequestParam(value = "min_price", required = false) BigDecimal min_price, @RequestParam(value = "max_price", required = false) BigDecimal max_price, @RequestParam(value = "q", required = false) String q){
+        List<Products> products = this.service.search(q, min_price, max_price);
+        return new ResponseEntity<>(products, HttpStatus.OK);
 
-        List<Products> allProducts = service.findAll();
-        List<Products> allProductsFiltered = new ArrayList<Products>();
-
-        if(q == null && max_price == null && min_price == null){
-            return allProducts;
-        }
-
-        else {
-            for (Products products : allProducts) {
-                if((products.getDescription().contains(q == null ? products.getDescription() : q))
-                   && (products.getPrice() >= (min_price == null ? products.getPrice() : min_price))
-                   && (products.getPrice() <= (max_price == null ? products.getPrice() : max_price))){
-
-                        allProductsFiltered.add(products);
-                    }
-                }
-
-            }
-
-            return allProductsFiltered;
         }
 
     @RequestMapping(value = "/products/{id}", method = RequestMethod.PUT)
-    public ResponseEntity<?> changeProduct(@PathVariable(value = "id") Integer id, @RequestBody Products newProduct){
-        ResponseEntity<Products> product = service.saveProduct(id, newProduct);
-
-        return ResponseEntity.ok().body(product);
+    public ResponseEntity<Products> updateProduct(@PathVariable Integer id, @Valid @RequestBody Products product) {
+        this.service.saveProduct(id, product);
+        return new ResponseEntity<>(product, HttpStatus.OK);
     }
 
     @RequestMapping(value = "/products/{id}", method = RequestMethod.DELETE)
     public ResponseEntity<?> deleteProduct(@PathVariable Integer id){
-        ResponseEntity<Products> product = service.deleteProducts(id);
-
-        return ResponseEntity.ok(HttpStatus.OK);
-
+        Optional<Products> product = this.service.findProduct(id);
+        return product.map(value -> {
+            this.service.deleteProducts(value);
+            return new ResponseEntity<>(HttpStatus.OK);}).orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
     }
 
 }
